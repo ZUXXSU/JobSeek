@@ -35,6 +35,18 @@ db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
+def format_indian(number):
+    s = str(int(number or 0))
+    if len(s) <= 3: return s
+    last_three = s[-3:]
+    remaining = s[:-3]
+    remaining_rev = remaining[::-1]
+    groups = [remaining_rev[i:i+2] for i in range(0, len(remaining_rev), 2)]
+    formatted_remaining = ",".join(groups)[::-1]
+    return f"{formatted_remaining},{last_three}"
+
+app.jinja_env.filters['indian_format'] = format_indian
+
 # Initialize database tables safely
 try:
     with app.app_context():
