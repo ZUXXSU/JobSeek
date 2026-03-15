@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+instance/
+.env
+.git/
+static/uploads/*
+!static/uploads/README.md

@@ -11,25 +11,36 @@ from functools import wraps
 from extensions import db, login_manager
 from models import User, Experience, Education, Skill, Job, Responsibility, Requirement, Tag, Application
 
-# Load environment variables
+# Load environment variables (Vercel provides these directly)
 load_dotenv()
 
 app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-12345')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///database.db')
-app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'static/uploads')
+
+# Vercel filesystem is read-only except for /tmp
+if os.environ.get('VERCEL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/database.db'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///database.db')
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = '/tmp' if os.environ.get('VERCEL') else os.getenv('UPLOAD_FOLDER', 'static/uploads')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 DB_SECRET = os.getenv('DB_SECRET', 'admin123')
-
-# Ensure upload folder exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Initialize Extensions
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+# Initialize database tables safely
+try:
+    with app.app_context():
+        db.create_all()
+except Exception as e:
+    print(f"Database initialization error: {e}")
 
 # -----------------------
 # HELPERS & MIDDLEWARE
@@ -37,7 +48,10 @@ login_manager.login_view = "login"
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except:
+        return None
 
 def admin_token_required(f):
     @wraps(f)
@@ -49,7 +63,6 @@ def admin_token_required(f):
             if admin_user:
                 login_user(admin_user)
             else:
-                flash("Admin account not found.")
                 return redirect(url_for("admin_verify"))
         return f(*args, **kwargs)
     return decorated
@@ -60,11 +73,14 @@ def admin_token_required(f):
 
 @app.route("/")
 def index():
-    query = Job.query.filter_by(status="active")
-    if current_user.is_authenticated and current_user.role == "seeker":
-        query = query.filter(~Job.applications.any(user_id=current_user.id))
-    jobs = query.order_by(Job.posted_at.desc()).limit(6).all()
-    return render_template("index.html", jobs=jobs)
+    try:
+        query = Job.query.filter_by(status="active")
+        if current_user.is_authenticated and current_user.role == "seeker":
+            query = query.filter(~Job.applications.any(user_id=current_user.id))
+        jobs = query.order_by(Job.posted_at.desc()).limit(6).all()
+        return render_template("index.html", jobs=jobs)
+    except Exception as e:
+        return f"App Error: {e}" if os.environ.get('FLASK_DEBUG') else "Server Error", 500
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -132,15 +148,9 @@ def jobs():
 @app.route("/admin")
 @admin_token_required
 def admin():
-    user_search = request.args.get('user_q', '')
-    job_search = request.args.get('job_q', '')
-    users_query = User.query
-    if user_search:
-        users_query = users_query.filter(User.username.contains(user_search) | User.email.contains(user_search))
-    jobs_query = Job.query
-    if job_search:
-        jobs_query = jobs_query.filter(Job.title.contains(job_search) | Job.company_name.contains(job_search))
-    return render_template("admin_secure_dashboard.html", users=users_query.all(), jobs=jobs_query.all(), user_q=user_search, job_q=job_search)
+    users = User.query.all()
+    jobs = Job.query.all()
+    return render_template("admin_secure_dashboard.html", users=users, jobs=jobs)
 
 @app.route("/admin/verify", methods=["GET", "POST"])
 def admin_verify():
@@ -192,21 +202,23 @@ def delete_job(job_id):
 
 @app.route("/seed")
 def seed():
-    db.create_all()
-    if not User.query.filter_by(email="admin@portal.com").first():
-        admin = User(username="admin", email="admin@portal.com", password=generate_password_hash("admin123"), role="admin", full_name="System Admin")
-        db.session.add(admin)
-        db.session.commit()
-    return "Seeded"
+    try:
+        db.create_all()
+        if not User.query.filter_by(email="admin@portal.com").first():
+            admin = User(username="admin", email="admin@portal.com", password=generate_password_hash("admin123"), role="admin", full_name="System Admin")
+            db.session.add(admin)
+            db.session.commit()
+        return "Database Seeded Successfully"
+    except Exception as e:
+        return f"Seed Error: {e}", 500
 
 @app.errorhandler(404)
 def not_found(e): return redirect(url_for("login"))
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    app.logger.error(f"Error: {e}")
     return render_template("server_error.html", error=str(e)), 500
 
+# Vercel needs 'app' variable at top level
 if __name__ == "__main__":
-    with app.app_context(): db.create_all()
     app.run(port=5001, debug=True)
