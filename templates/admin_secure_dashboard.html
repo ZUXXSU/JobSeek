@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
+        <h2><i class="bi bi-shield-lock-fill text-primary"></i> Ultimate Admin Control Center</h2>
+        <div class="d-flex gap-2">
+            <a href="/admin/logout_session" class="btn btn-outline-danger btn-sm">Sign Out Admin Session</a>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="col-12 mb-5">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-uppercase small fw-bold opacity-75">Total Users</h6>
+                        <h2 class="mb-0 fw-bold">{{ users|length }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-uppercase small fw-bold opacity-75">Active Jobs</h6>
+                        <h2 class="mb-0 fw-bold">{{ jobs|length }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-uppercase small fw-bold opacity-75">Employers</h6>
+                        <h2 class="mb-0 fw-bold">{{ users|selectattr('role', 'equalto', 'employer')|list|length }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-uppercase small fw-bold opacity-75">Job Seekers</h6>
+                        <h2 class="mb-0 fw-bold">{{ users|selectattr('role', 'equalto', 'seeker')|list|length }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="col-12">
+        <ul class="nav nav-pills mb-4 bg-white p-2 rounded shadow-sm" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold px-4" id="users-tab" data-bs-toggle="pill" data-bs-target="#users-section" type="button">
+                    <i class="bi bi-people me-2"></i>User Management
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold px-4" id="jobs-tab" data-bs-toggle="pill" data-bs-target="#jobs-section" type="button">
+                    <i class="bi bi-briefcase me-2"></i>Job Listings
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="adminTabsContent">
+            <!-- Users Section -->
+            <div class="tab-pane fade show active" id="users-section" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white p-4">
+                        <form method="GET" class="row g-2">
+                            <div class="col-md-10">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                                    <input type="text" name="user_q" class="form-control bg-light border-start-0" 
+                                           placeholder="Search by username or email..." value="{{ user_q }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">Filter Users</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">User</th>
+                                    <th>Role</th>
+                                    <th>Location</th>
+                                    <th>Joined</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <img src="{{ user.profile_picture if user.profile_picture and user.profile_picture.startswith('http') else url_for('static', filename=user.profile_picture) if user.profile_picture else 'https://ui-avatars.com/api/?name=' + user.username }}" class="rounded-circle me-3 object-fit-cover" width="40" height="40">
+                                            <div>
+                                                <div class="fw-bold">{{ user.username }}</div>
+                                                <div class="small text-muted">{{ user.email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'employer' %}bg-primary{% else %}bg-info{% endif %} px-3">
+                                            {{ user.role.capitalize() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ user.city or 'N/A' }}, {{ user.country or '' }}</td>
+                                    <td class="small">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
+                                    <td class="text-end pe-4">
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}">
+                                            <i class="bi bi-eye"></i> Details
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- User Modal -->
+                                <div class="modal fade" id="userModal{{ user.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header bg-dark text-white">
+                                                <h5 class="modal-title fw-bold"><i class="bi bi-person-badge me-2"></i>Full System Profile: {{ user.username }}</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <div class="row">
+                                                    <!-- Profile Header -->
+                                                    <div class="col-md-4 text-center border-end">
+                                                        <img src="{{ user.profile_picture if user.profile_picture and user.profile_picture.startswith('http') else url_for('static', filename=user.profile_picture) if user.profile_picture else 'https://ui-avatars.com/api/?name=' + user.username + '&size=200' }}" class="rounded-circle shadow-sm p-1 border object-fit-cover mb-3" width="150" height="150">
+                                                        <h4 class="fw-bold mb-0">{{ user.full_name or user.username }}</h4>
+                                                        <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'employer' %}bg-primary{% else %}bg-info{% endif %} mb-3">
+                                                            {{ user.role.upper() }}
+                                                        </span>
+                                                        <div class="text-start small mt-3">
+                                                            <p class="mb-1"><strong>ID:</strong> #{{ user.id }}</p>
+                                                            <p class="mb-1"><strong>Email:</strong> {{ user.email }}</p>
+                                                            <p class="mb-1"><strong>Joined:</strong> {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Profile Details -->
+                                                    <div class="col-md-8 ps-md-4">
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Personal & Location</h6>
+                                                        <div class="row mb-4">
+                                                            <div class="col-6 mb-2">
+                                                                <label class="x-small text-muted fw-bold">Phone</label>
+                                                                <div class="fw-medium">{{ user.phone or 'Not set' }}</div>
+                                                            </div>
+                                                            <div class="col-6 mb-2">
+                                                                <label class="x-small text-muted fw-bold">Location</label>
+                                                                <div class="fw-medium">{{ user.city or 'N/A' }}, {{ user.state or '' }}, {{ user.country or '' }}</div>
+                                                            </div>
+                                                            {% if user.role == 'seeker' %}
+                                                            <div class="col-12 mb-2">
+                                                                <label class="x-small text-muted fw-bold">Expected Salary</label>
+                                                                <div class="fw-bold text-success">{{ user.currency }} {{ "{:,}".format(user.expected_salary_min or 0) }}</div>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Professional Summary</h6>
+                                                        <p class="small text-secondary mb-4">{{ user.professional_summary or 'No summary provided.' }}</p>
+
+                                                        {% if user.role == 'seeker' %}
+                                                        <!-- Experience -->
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Work History ({{ user.experiences|length }})</h6>
+                                                        {% for exp in user.experiences %}
+                                                        <div class="mb-3 p-2 bg-light rounded border-start border-3 border-primary">
+                                                            <div class="d-flex justify-content-between">
+                                                                <span class="small fw-bold">{{ exp.role }} @ {{ exp.company }}</span>
+                                                                <span class="x-small text-muted">{{ exp.start_date }} - {{ exp.end_date or 'Present' }}</span>
+                                                            </div>
+                                                            <div class="x-small text-secondary mt-1">{{ exp.description }}</div>
+                                                        </div>
+                                                        {% endfor %}
+
+                                                        <!-- Education -->
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3 mt-4">Education</h6>
+                                                        {% for edu in user.educations %}
+                                                        <div class="x-small mb-2">
+                                                            <strong>{{ edu.degree }}</strong> from {{ edu.institution }} ({{ edu.year_of_passing }})
+                                                        </div>
+                                                        {% endfor %}
+
+                                                        <!-- Skills -->
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3 mt-4">Technical Skills</h6>
+                                                        <div class="mb-4">
+                                                            {% for skill in user.skills %}
+                                                            <span class="badge bg-white text-dark border me-1 mb-1">{{ skill.name }}</span>
+                                                            {% endfor %}
+                                                        </div>
+
+                                                        <!-- Applications History -->
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Applied Job History ({{ user.applications|length }})</h6>
+                                                        {% for app in user.applications %}
+                                                        <div class="mb-3 p-3 bg-light rounded border-start border-3 border-success">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <div class="fw-bold text-dark">{{ app.job.title }}</div>
+                                                                    <div class="x-small text-muted">{{ app.job.company_name }} • Applied on {{ app.applied_at.strftime('%Y-%m-%d') }}</div>
+                                                                </div>
+                                                                <a href="/job/{{ app.job_id }}" target="_blank" class="btn btn-sm btn-link text-decoration-none">View Job <i class="bi bi-box-arrow-up-right"></i></a>
+                                                            </div>
+                                                        </div>
+                                                        {% else %}
+                                                        <p class="small text-muted italic">This user hasn't applied for any jobs yet.</p>
+                                                        {% endfor %}
+                                                        {% endif %}
+
+                                                        {% if user.role == 'employer' %}
+                                                        <div class="text-center mb-3">
+                                                            {% if user.company_logo %}
+                                                            <img src="{{ url_for('static', filename=user.company_logo) }}" class="img-thumbnail" width="120">
+                                                            {% endif %}
+                                                        </div>
+                                                        <!-- Employer Listings -->
+                                                        <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Posted Job Listings ({{ user.jobs|length }})</h6>
+                                                        {% for job in user.jobs %}
+                                                        <div class="mb-3 p-3 bg-light rounded border">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <div class="fw-bold text-primary">{{ job.title }}</div>
+                                                                    <div class="x-small text-muted">{{ job.location }} • {{ job.applicant_count }} Applicants</div>
+                                                                </div>
+                                                                <a href="/job/{{ job.id }}" target="_blank" class="btn btn-sm btn-link text-decoration-none">View Listing <i class="bi bi-box-arrow-up-right"></i></a>
+                                                            </div>
+                                                        </div>
+                                                        {% else %}
+                                                        <p class="small text-muted italic">This employer has not posted any jobs yet.</p>
+                                                        {% endfor %}
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close Profile</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobs Section -->
+            <div class="tab-pane fade" id="jobs-section" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white p-4">
+                        <form method="GET" class="row g-2">
+                            <div class="col-md-10">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                                    <input type="text" name="job_q" class="form-control bg-light border-start-0" 
+                                           placeholder="Search by job title or company..." value="{{ job_q }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-success w-100">Filter Jobs</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Job Listing</th>
+                                    <th>Employer Entity</th>
+                                    <th>Applicants</th>
+                                    <th>Salary Range</th>
+                                    <th class="text-end pe-4">System Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for job in jobs %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-primary">{{ job.title }}</div>
+                                        <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ job.location }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if job.poster.company_logo %}
+                                            <img src="{{ url_for('static', filename=job.poster.company_logo) }}" class="rounded me-2" width="40" height="40">
+                                            {% else %}
+                                            <div class="p-2 bg-soft-primary rounded me-2">
+                                                <i class="bi bi-building text-primary"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <div class="small fw-bold">{{ job.company_name }}</div>
+                                                <div class="x-small text-muted">Posted by ID: #{{ job.poster_id }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge rounded-pill bg-light text-dark border">
+                                            <i class="bi bi-people me-1"></i> {{ job.applicant_count }}
+                                        </span>
+                                    </td>
+                                    <td class="small fw-bold text-success">
+                                        ₹{{ "{:,}".format(job.salary_min or 0) }} - {{ "{:,}".format(job.salary_max or 0) }}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group">
+                                            <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="bi bi-link-45deg"></i>
+                                            </a>
+                                            <a href="/delete_job/{{ job.id }}" class="btn btn-sm btn-outline-danger" 
+                                               onclick="return confirm('ADMIN ACTION: Permanently delete this listing?')">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
+.x-small { font-size: 0.75rem; }
+.nav-pills .nav-link { color: #6c757d; border-radius: 8px; transition: all 0.2s; }
+.nav-pills .nav-link.active { background-color: #0d6efd!important; color: white!important; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2); }
+.cursor-pointer { cursor: pointer; }
+</style>
+
+<script>
+// Preserve tab on search
+document.addEventListener("DOMContentLoaded", function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('job_q')) {
+        var triggerEl = document.querySelector('#jobs-tab');
+        bootstrap.Tab.getOrCreateInstance(triggerEl).show();
+    }
+});
+</script>
+<style>
+    .group:hover .group-hover-opacity-100 { opacity: 1 !important; }
+    .transition-all { transition: all 0.2s ease-in-out; }
+    .cursor-pointer { cursor: pointer; }
+    .x-small { font-size: 0.75rem; }
+    .object-fit-cover { object-fit: cover; }
+</style>
+
+{% endblock %}

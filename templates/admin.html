@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row mb-5">
+    <div class="col">
+        <h2 class="fw-bold"><i class="bi bi-shield-lock me-2"></i>Global Administration Dashboard</h2>
+        <p class="text-muted">Manage system users, job listings, and site-wide metadata.</p>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="row mb-5 text-center">
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm border-0 bg-primary text-white">
+            <div class="card-body py-4">
+                <h2 class="fw-bold mb-0">{{ users|length }}</h2>
+                <p class="mb-0 small text-uppercase fw-bold opacity-75">Registered Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm border-0 bg-success text-white">
+            <div class="card-body py-4">
+                <h2 class="fw-bold mb-0">{{ jobs|length }}</h2>
+                <p class="mb-0 small text-uppercase fw-bold opacity-75">Live Job Listings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm border-0 bg-dark text-white">
+            <div class="card-body py-4">
+                <h2 class="fw-bold mb-0">99.9%</h2>
+                <p class="mb-0 small text-uppercase fw-bold opacity-75">System Uptime</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Management -->
+<div class="card shadow-sm border-0 mb-5">
+    <div class="card-header bg-white border-bottom p-4">
+        <h4 class="mb-0 fw-bold">User Management Control</h4>
+    </div>
+    <div class="card-body p-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th class="border-0">User Profile</th>
+                        <th class="border-0">Role</th>
+                        <th class="border-0">Location</th>
+                        <th class="border-0 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td class="border-0">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ user.profile_picture if user.profile_picture and user.profile_picture.startswith('http') else url_for('static', filename=user.profile_picture) if user.profile_picture else 'https://ui-avatars.com/api/?name=' + user.username + '&background=random' }}" class="rounded-circle me-3 object-fit-cover" width="40" height="40">
+                                <div>
+                                    <h6 class="mb-0 fw-bold">{{ user.full_name or user.username }}</h6>
+                                    <small class="text-muted">{{ user.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="border-0">
+                            <span class="badge {% if user.role == 'admin' %}bg-danger{% elif user.role == 'employer' %}bg-primary{% else %}bg-success{% endif %}">
+                                {{ user.role.capitalize() }}
+                            </span>
+                        </td>
+                        <td class="border-0">
+                            <small class="text-muted">{{ user.city or 'N/A' }}, {{ user.country or '' }}</small>
+                        </td>
+                        <td class="border-0 text-end">
+                            {% if user.id != current_user.id and user.role != 'admin' %}
+                            <a href="/admin/delete_user/{{ user.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete user permanently?')">
+                                <i class="bi bi-person-x"></i>
+                            </a>
+                            {% else %}
+                            <span class="badge bg-light text-dark">System User</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Job Management -->
+<div class="card shadow-sm border-0 mb-5">
+    <div class="card-header bg-white border-bottom p-4">
+        <h4 class="mb-0 fw-bold">Job Management Control</h4>
+    </div>
+    <div class="card-body p-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th class="border-0">Job Title & Company</th>
+                        <th class="border-0">Metadata</th>
+                        <th class="border-0">Salary</th>
+                        <th class="border-0 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td class="border-0">
+                            <h6 class="mb-0 fw-bold text-primary">{{ job.title }}</h6>
+                            <small class="text-muted">{{ job.company_name }}</small>
+                        </td>
+                        <td class="border-0">
+                            <div class="small">
+                                <span class="badge bg-light text-dark border me-1">{{ job.experience_level }}</span>
+                                <span class="text-muted">{{ job.location }}</span>
+                            </div>
+                        </td>
+                        <td class="border-0">
+                            <span class="text-success fw-bold">₹{{ job.salary_min|indian_format }}+</span>
+                        </td>
+                        <td class="border-0 text-end">
+                            <a href="/delete_job/{{ job.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete listing?')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

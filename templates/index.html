@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row align-items-center mb-5 py-5">
+    <div class="col-lg-6">
+        <h1 class="display-3 fw-bold text-primary mb-3">Find Your Dream Job Today</h1>
+        <p class="lead text-muted mb-4 fs-4">Connecting talented developers with top-tier tech companies across the country.</p>
+        <div class="d-flex gap-3">
+            <a href="/jobs" class="btn btn-primary btn-lg px-5 py-3 shadow">Browse All Jobs</a>
+            {% if not current_user.is_authenticated %}
+            <a href="/register" class="btn btn-outline-secondary btn-lg px-5 py-3">Get Started</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6 d-none d-lg-block text-center">
+        <img src="https://img.freepik.com/free-vector/professional-resume-concept-set-candidate-applying-job-recruitment-idea-resume-curriculum-vitae-writing-service-isolated-vector-illustration_613284-1311.jpg" class="img-fluid rounded-5" style="max-height: 400px;">
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <h2 class="fw-bold mb-0">Latest Opportunities</h2>
+        <p class="text-muted mb-0">Discover high-growth roles in tech</p>
+    </div>
+    <a href="/jobs" class="text-decoration-none fw-bold">View all <i class="bi bi-arrow-right"></i></a>
+</div>
+
+<div class="row">
+    {% for job in jobs %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm hover-shadow border-0 transition cursor-pointer" 
+             onclick="window.location.href='/job/{{ job.id }}'">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between mb-3 align-items-start">
+                    <div>
+                        <span class="badge bg-soft-primary text-primary px-3 py-2 rounded-pill mb-2">
+                            {% if job.tags %}{{ job.tags[0].name }}{% else %}General{% endif %}
+                        </span>
+                        <h4 class="card-title fw-bold mb-1">{{ job.title }}</h4>
+                        <p class="text-muted mb-0"><i class="bi bi-building me-1"></i>{{ job.company_name }}</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-success fw-bold d-block">
+                            ₹{{ job.salary_min|indian_format }}
+                        </span>
+                        <small class="text-muted">Min per year</small>
+                    </div>
+                </div>
+                
+                <p class="card-text text-secondary mb-4">
+                    {{ job.description[:120] }}{% if job.description|length > 120 %}...{% endif %}
+                </p>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-muted"><i class="bi bi-geo-alt me-1"></i>{{ job.location }}</span>
+                    <a href="/apply/{{ job.id }}" class="btn btn-outline-primary px-4" onclick="event.stopPropagation();">Apply Now</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <p class="lead text-muted">No jobs available at the moment. Check back later!</p>
+        <a href="/seed" class="btn btn-primary shadow-sm">Load Demo Data</a>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
+.hover-shadow:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.1)!important; }
+.transition { transition: all 0.3s ease; }
+</style>
+{% endblock %}

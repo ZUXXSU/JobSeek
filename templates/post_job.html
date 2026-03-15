@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-md-10">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white p-4">
+                <h3 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2"></i>Post an Advanced Job Listing</h3>
+            </div>
+            <div class="card-body p-5">
+                <form method="POST">
+                    <!-- Basic Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Job Title</label>
+                            <input name="title" class="form-control" required placeholder="e.g. Senior Flutter Developer">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Company Name</label>
+                            <input name="company_name" class="form-control" required placeholder="e.g. AppScale Studio">
+                        </div>
+                    </div>
+
+                    <!-- Metadata -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Location</label>
+                            <input name="location" class="form-control" required placeholder="City or Remote">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Experience Level</label>
+                            <select name="experience_level" class="form-control" required>
+                                <option value="Entry-level">Entry-level</option>
+                                <option value="Junior">Junior</option>
+                                <option value="Mid-level">Mid-level</option>
+                                <option value="Mid-Senior">Mid-Senior</option>
+                                <option value="Senior">Senior</option>
+                                <option value="Lead">Lead</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Job Type</label>
+                            <select name="job_type" class="form-control" required>
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Internship">Internship</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Salary -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Min Salary (INR)</label>
+                            <input type="number" name="salary_min" class="form-control" required placeholder="1500000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Max Salary (INR)</label>
+                            <input type="number" name="salary_max" class="form-control" required placeholder="2500000">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_remote" id="remoteSwitch" checked>
+                                <label class="form-check-label" for="remoteSwitch">This is a Remote Position</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Details Lists -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase">Job Description</label>
+                        <textarea name="description" class="form-control" rows="4" required placeholder="Provide a general overview of the role..."></textarea>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Responsibilities (One per line)</label>
+                            <textarea name="responsibilities" class="form-control" rows="6" placeholder="Develop new features...&#10;Optimize UI performance..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Requirements (One per line)</label>
+                            <textarea name="requirements" class="form-control" rows="6" placeholder="3+ years Flutter experience...&#10;Strong Dart knowledge..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="form-label fw-bold small text-uppercase">Tags (Comma separated)</label>
+                        <input name="tags" class="form-control" placeholder="Flutter, Dart, Mobile, Remote">
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold py-3">Publish Professional Job Listing</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

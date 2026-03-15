@@ -1,0 +1,212 @@
+from flask import Flask, render_template, redirect, request, flash, url_for, session
+from flask_login import login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+from PIL import Image
+from functools import wraps
+
+# Import extensions and models
+from extensions import db, login_manager
+from models import User, Experience, Education, Skill, Job, Responsibility, Requirement, Tag, Application
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+
+# Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-12345')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///database.db')
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'static/uploads')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+DB_SECRET = os.getenv('DB_SECRET', 'admin123')
+
+# Ensure upload folder exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Initialize Extensions
+db.init_app(app)
+login_manager.init_app(app)
+login_manager.login_view = "login"
+
+# -----------------------
+# HELPERS & MIDDLEWARE
+# -----------------------
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+def admin_token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('admin_verified'):
+            return redirect(url_for('admin_verify'))
+        if not current_user.is_authenticated or current_user.role != "admin":
+            admin_user = User.query.filter_by(role='admin').first()
+            if admin_user:
+                login_user(admin_user)
+            else:
+                flash("Admin account not found.")
+                return redirect(url_for("admin_verify"))
+        return f(*args, **kwargs)
+    return decorated
+
+# -----------------------
+# ROUTES
+# -----------------------
+
+@app.route("/")
+def index():
+    query = Job.query.filter_by(status="active")
+    if current_user.is_authenticated and current_user.role == "seeker":
+        query = query.filter(~Job.applications.any(user_id=current_user.id))
+    jobs = query.order_by(Job.posted_at.desc()).limit(6).all()
+    return render_template("index.html", jobs=jobs)
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        if User.query.filter_by(email=request.form["email"]).first():
+            flash("Email already exists!")
+            return redirect(url_for("register"))
+        user = User(
+            username=request.form["username"], email=request.form["email"],
+            password=generate_password_hash(request.form["password"]),
+            role=request.form["role"], full_name=request.form["username"]
+        )
+        db.session.add(user)
+        db.session.commit()
+        return redirect(url_for("login"))
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        user = User.query.filter_by(email=request.form["email"]).first()
+        if user and check_password_hash(user.password, request.form["password"]):
+            login_user(user)
+            if user.role == "admin":
+                session['admin_verified'] = True
+                return redirect(url_for("admin"))
+            return redirect(url_for("dashboard"))
+        flash("Invalid credentials")
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    session.pop('admin_verified', None)
+    return redirect(url_for("index"))
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    posted_jobs = Job.query.filter_by(poster_id=current_user.id).all() if current_user.role == "employer" else []
+    apps = Application.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", jobs=posted_jobs, applications=apps)
+
+@app.route("/job/<int:job_id>")
+def job_detail(job_id):
+    job = Job.query.get_or_404(job_id)
+    return render_template("job_detail.html", job=job)
+
+@app.route("/jobs")
+def jobs():
+    from sqlalchemy import or_
+    search_query = request.args.get("q", "")
+    query = Job.query.filter_by(status="active")
+    if current_user.is_authenticated and current_user.role == "seeker":
+        query = query.filter(~Job.applications.any(user_id=current_user.id))
+    if search_query:
+        query = query.filter(or_(Job.title.contains(search_query), Job.company_name.contains(search_query)))
+    return render_template("jobs.html", jobs=query.all(), search_query=search_query)
+
+# -----------------------
+# ADMIN ROUTES
+# -----------------------
+
+@app.route("/admin")
+@admin_token_required
+def admin():
+    user_search = request.args.get('user_q', '')
+    job_search = request.args.get('job_q', '')
+    users_query = User.query
+    if user_search:
+        users_query = users_query.filter(User.username.contains(user_search) | User.email.contains(user_search))
+    jobs_query = Job.query
+    if job_search:
+        jobs_query = jobs_query.filter(Job.title.contains(job_search) | Job.company_name.contains(job_search))
+    return render_template("admin_secure_dashboard.html", users=users_query.all(), jobs=jobs_query.all(), user_q=user_search, job_q=job_search)
+
+@app.route("/admin/verify", methods=["GET", "POST"])
+def admin_verify():
+    if request.method == "POST":
+        if request.form.get("secret_key") == DB_SECRET:
+            session['admin_verified'] = True
+            admin_user = User.query.filter_by(role='admin').first()
+            if not admin_user:
+                admin_user = User(
+                    username="admin", email="admin@portal.com",
+                    password=generate_password_hash("admin123"),
+                    role="admin", full_name="System Admin"
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+            login_user(admin_user)
+            return redirect(url_for("admin"))
+        flash("Invalid Secret Key")
+    return render_template("admin_token_portal.html")
+
+@app.route("/admin/api/generate_token", methods=["POST"])
+def generate_admin_token():
+    secret = request.json.get("secret_key") if request.is_json else request.form.get("secret_key")
+    if secret == DB_SECRET:
+        session['admin_verified'] = True
+        admin_user = User.query.filter_by(role='admin').first()
+        if not admin_user:
+            admin_user = User(username="admin", email="admin@portal.com", password=generate_password_hash("admin123"), role="admin", full_name="System Admin")
+            db.session.add(admin_user)
+            db.session.commit()
+        login_user(admin_user)
+        if request.is_json: return {"success": True}
+        return redirect(url_for("admin"))
+    return {"error": "Invalid Key"}, 401
+
+@app.route("/admin/logout_session")
+def admin_logout_session():
+    session.pop('admin_verified', None)
+    return redirect(url_for("index"))
+
+@app.route("/delete_job/<int:job_id>")
+@login_required
+def delete_job(job_id):
+    job = Job.query.get_or_404(job_id)
+    if current_user.role == "admin" or job.poster_id == current_user.id:
+        db.session.delete(job)
+        db.session.commit()
+    return redirect(url_for("admin" if current_user.role == "admin" else "dashboard"))
+
+@app.route("/seed")
+def seed():
+    db.create_all()
+    if not User.query.filter_by(email="admin@portal.com").first():
+        admin = User(username="admin", email="admin@portal.com", password=generate_password_hash("admin123"), role="admin", full_name="System Admin")
+        db.session.add(admin)
+        db.session.commit()
+    return "Seeded"
+
+@app.errorhandler(404)
+def not_found(e): return redirect(url_for("login"))
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Error: {e}")
+    return render_template("server_error.html", error=str(e)), 500
+
+if __name__ == "__main__":
+    with app.app_context(): db.create_all()
+    app.run(port=5001, debug=True)

@@ -1,0 +1,50 @@
+{% for job in jobs %}
+<div class="col-12 mb-4 job-item">
+    <div class="card shadow-sm border-0 hover-lift transition cursor-pointer" 
+         onclick="window.location.href='/job/{{ job.id }}'">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-2">
+                        <h4 class="mb-0 fw-bold text-primary">{{ job.title }}</h4>
+                        <span class="badge bg-soft-success text-success ms-3 px-3">{{ job.job_type }}</span>
+                    </div>
+                    <p class="mb-3">
+                        <span class="fw-bold text-dark">{{ job.company_name }}</span> 
+                        <span class="text-muted mx-2">|</span> 
+                        <i class="bi bi-geo-alt text-muted"></i> {{ job.location }}
+                        {% if job.is_remote %}<span class="text-info ms-2 small fw-bold">(Remote)</span>{% endif %}
+                    </p>
+                    
+                    <div class="mb-3">
+                        {% for tag in job.tags %}
+                        <span class="badge border text-muted fw-normal me-1">{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="col-md-4 text-md-end border-start-md">
+                    <div class="mb-3">
+                        <span class="h5 fw-bold text-dark">
+                            ₹{{ job.salary_min|indian_format }} - {{ job.salary_max|indian_format }}
+                        </span>
+                        <div class="small text-muted">Per Annum ({{ job.salary_currency }})</div>
+                    </div>
+                    <a href="/apply/{{ job.id }}" class="btn btn-primary px-4" onclick="event.stopPropagation();">Apply Now</a>
+                </div>
+            </div>
+            <hr class="my-3 text-muted opacity-25">
+            <div class="small text-muted d-flex justify-content-between">
+                <span><i class="bi bi-briefcase me-1"></i> {{ job.experience_level }}</span>
+                <span><i class="bi bi-clock me-1"></i> Posted {{ job.posted_at.strftime('%Y-%m-%d') if job.posted_at else '' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="col-12 text-center py-5">
+    <i class="bi bi-search display-1 text-muted opacity-25"></i>
+    <h3 class="mt-4">No jobs found</h3>
+    <p class="text-muted">Try adjusting your filters or search keywords.</p>
+</div>
+{% endfor %}

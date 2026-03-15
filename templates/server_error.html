@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 text-center">
+        <div class="card shadow border-danger">
+            <div class="card-body py-5">
+                <h1 class="display-1 text-danger"><i class="bi bi-exclamation-triangle"></i></h1>
+                <h2 class="mb-4">500 - Internal Server Error</h2>
+                <p class="lead text-muted">Something went wrong on our end. We're looking into it.</p>
+                {% if error %}
+                <div class="alert alert-light border mt-4 text-start">
+                    <code>{{ error }}</code>
+                </div>
+                {% endif %}
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary">Go to Homepage</a>
+                    <a href="/login" class="btn btn-outline-secondary">Login Again</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

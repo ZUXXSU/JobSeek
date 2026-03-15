@@ -1,0 +1,29 @@
+body{
+background:#f5f7fb;
+font-family:Arial;
+}
+
+.job-card{
+border:none;
+border-radius:10px;
+box-shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+
+.salary{
+font-weight:bold;
+color:green;
+}
+
+.dashboard-card{
+border:none;
+border-radius:12px;
+box-shadow:0 3px 15px rgba(0,0,0,0.1);
+}
+
+.navbar{
+box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}

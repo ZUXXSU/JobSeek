@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Job Portal</title>
+
+<link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+<link rel="stylesheet"
+href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+    body { background-color: #f8f9fa; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.08); }
+    .nav-link { font-weight: 500; }
+    .btn { border-radius: 8px; font-weight: 500; transition: all 0.2s; }
+
+    /* Animated Search Box */
+    .search-box { width: 45px; height: 45px; position: relative; transition: all 0.4s ease; border-radius: 25px; background: rgba(255,255,255,0.1); display: flex; align-items: center; overflow: hidden; }
+    .search-box.active { width: 350px; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .search-input { width: 100%; border: none; background: transparent; outline: none; padding: 0 15px 0 45px; font-size: 14px; color: #333; opacity: 0; transition: all 0.3s; }
+    .search-box.active .search-input { opacity: 1; }
+    .search-box.active .search-input::placeholder { color: #999; }
+    .search-btn { width: 45px; height: 45px; border-radius: 50%; background: transparent; border: none; display: flex; justify-content: center; align-items: center; position: absolute; left: 0; cursor: pointer; transition: all 0.3s; color: white; }
+    .search-box.active .search-btn { color: #0d6efd; }
+    .search-btn i { font-size: 18px; }
+</style>
+
+</head>
+
+<body>
+
+<script>
+    function toggleSearch() {
+        const box = document.getElementById('nav-search-container');
+        const input = document.getElementById('universal-search');
+        box.classList.toggle('active');
+        if (box.classList.contains('active')) {
+            input.focus();
+        }
+    }
+
+    let searchTimeout;
+    function handleLiveSearch(val) {
+        // If not on jobs page, redirect on enter or wait for typing to finish
+        if (window.location.pathname !== '/jobs') {
+            window.onkeydown = function(e) {
+                if (e.keyCode === 13) window.location.href = '/jobs?q=' + encodeURIComponent(val);
+            };
+            return;
+        }
+
+        // Live update if on jobs page
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const container = document.getElementById('job-list-container');
+            const header = document.getElementById('search-results-header');
+            
+            if (!container) return;
+
+            fetch(`/api/jobs/search?q=${encodeURIComponent(val)}`)
+                .then(res => res.text())
+                .then(html => {
+                    container.innerHTML = html;
+                    if (header) {
+                        header.innerText = val ? `Results for "${val}"` : "Explore Career Opportunities";
+                    }
+                });
+        }, 300);
+    }
+
+    // Auto-open search if query exists
+    document.addEventListener('DOMContentLoaded', () => {
+        const input = document.getElementById('universal-search');
+        if (input.value) {
+            document.getElementById('nav-search-container').classList.add('active');
+        }
+    });
+</script>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3 mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold fs-3" href="/"><i class="bi bi-briefcase-fill me-2 text-primary"></i>JobPortal</a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="btn btn-primary px-4 fw-bold shadow-sm" href="/jobs">
+                        <i class="bi bi-grid-fill me-2"></i>Browse Jobs
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Animated Universal Search -->
+            <div class="search-box ms-lg-4" id="nav-search-container">
+                <input type="text" id="universal-search" class="search-input" 
+                       placeholder="Search jobs, skills, locations..." 
+                       value="{{ request.args.get('q', '') }}"
+                       onkeyup="handleLiveSearch(this.value)">
+                <button class="search-btn" onclick="toggleSearch()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 ms-lg-3">
+                {% if current_user.is_authenticated %}
+                    <a class="btn btn-primary" href="/dashboard"><i class="bi bi-person-circle me-1"></i> Dashboard</a>
+                    
+                    {% if current_user.role == "employer" %}
+                        <a class="btn btn-outline-light" href="/post_job"><i class="bi bi-plus-lg me-1"></i> Post Job</a>
+                    {% endif %}
+
+                    {% if current_user.role == "admin" %}
+                        <a class="btn btn-warning" href="/admin"><i class="bi bi-shield-check me-1"></i> Admin</a>
+                    {% endif %}
+
+                    <a class="btn btn-outline-danger ms-2" href="/logout"><i class="bi bi-box-arrow-right"></i></a>
+                {% else %}
+                    <a class="btn btn-outline-light px-4" href="/login">Login</a>
+                    <a class="btn btn-primary px-4" href="/register">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-info alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-info-circle me-2"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+{% block content %}
+
+{% endblock %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

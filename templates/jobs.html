@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0" id="search-results-header">
+        {% if search_query %}
+            Results for "{{ search_query }}"
+        {% else %}
+            Explore Career Opportunities
+        {% endif %}
+    </h2>
+    {% if search_query %}
+        <a href="/jobs" class="btn btn-sm btn-outline-secondary">Clear Search</a>
+    {% endif %}
+</div>
+
+<div class="row" id="job-list-container">
+    {% include '_job_cards.html' %}
+</div>
+
+<style>
+.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.1)!important; }
+.transition { transition: all 0.3s ease; }
+.bg-soft-success { background-color: rgba(25, 135, 84, 0.1); }
+@media (min-width: 768px) { .border-start-md { border-left: 1px solid #dee2e6!important; } }
+</style>
+{% endblock %}
