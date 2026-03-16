@@ -1,7 +1,9 @@
 from flask import Flask, render_template, redirect, request, flash, url_for, session
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
+import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from PIL import Image
@@ -136,6 +138,192 @@ def dashboard():
     posted_jobs = Job.query.filter_by(poster_id=current_user.id).all() if current_user.role == "employer" else []
     apps = Application.query.filter_by(user_id=current_user.id).all()
     return render_template("dashboard.html", jobs=posted_jobs, applications=apps)
+
+# -----------------------
+# USER PROFILE & DETAILS
+# -----------------------
+
+@app.route("/profile/update", methods=["POST"])
+@login_required
+def update_profile():
+    current_user.full_name = request.form.get("full_name")
+    current_user.phone = request.form.get("phone")
+    current_user.city = request.form.get("city")
+    current_user.state = request.form.get("state")
+    current_user.country = request.form.get("country")
+    if current_user.role == "seeker":
+        current_user.expected_salary_min = int(request.form.get("expected_salary_min", 0))
+    current_user.professional_summary = request.form.get("professional_summary")
+    db.session.commit()
+    flash("Profile updated successfully!")
+    return redirect(url_for("dashboard"))
+
+@app.route("/profile/picture", methods=["POST"])
+@login_required
+def update_profile_picture():
+    if 'profile_picture' in request.files:
+        file = request.files['profile_picture']
+        if file.filename != '':
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"{current_user.username}_{uuid.uuid4().hex[:4]}.{ext}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            current_user.profile_picture = f"uploads/{filename}"
+            db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/experience/add", methods=["POST"])
+@login_required
+def add_experience():
+    exp = Experience(
+        user_id=current_user.id,
+        company=request.form.get("company"),
+        role=request.form.get("role"),
+        start_date=request.form.get("start_date"),
+        end_date=request.form.get("end_date"),
+        current_job='current_job' in request.form,
+        description=request.form.get("description")
+    )
+    db.session.add(exp)
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/experience/update/<int:exp_id>", methods=["POST"])
+@login_required
+def update_experience(exp_id):
+    exp = Experience.query.get_or_404(exp_id)
+    if exp.user_id == current_user.id:
+        exp.company = request.form.get("company")
+        exp.role = request.form.get("role")
+        exp.start_date = request.form.get("start_date")
+        exp.end_date = request.form.get("end_date")
+        exp.current_job = 'current_job' in request.form
+        exp.description = request.form.get("description")
+        db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/experience/delete/<int:exp_id>")
+@login_required
+def delete_experience(exp_id):
+    exp = Experience.query.get_or_404(exp_id)
+    if exp.user_id == current_user.id:
+        db.session.delete(exp)
+        db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/education/add", methods=["POST"])
+@login_required
+def add_education():
+    edu = Education(
+        user_id=current_user.id,
+        institution=request.form.get("institution"),
+        degree=request.form.get("degree"),
+        year_of_passing=int(request.form.get("year_of_passing", 0))
+    )
+    db.session.add(edu)
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/education/update/<int:edu_id>", methods=["POST"])
+@login_required
+def update_education(edu_id):
+    edu = Education.query.get_or_404(edu_id)
+    if edu.user_id == current_user.id:
+        edu.institution = request.form.get("institution")
+        edu.degree = request.form.get("degree")
+        edu.year_of_passing = int(request.form.get("year_of_passing", 0))
+        db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/education/delete/<int:edu_id>")
+@login_required
+def delete_education(edu_id):
+    edu = Education.query.get_or_404(edu_id)
+    if edu.user_id == current_user.id:
+        db.session.delete(edu)
+        db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/skill/add", methods=["POST"])
+@login_required
+def add_skill():
+    names = request.form.get("name", "").split(",")
+    for name in names:
+        if name.strip():
+            skill = Skill(user_id=current_user.id, name=name.strip())
+            db.session.add(skill)
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/skill/delete/<int:skill_id>")
+@login_required
+def delete_skill(skill_id):
+    skill = Skill.query.get_or_404(skill_id)
+    if skill.user_id == current_user.id:
+        db.session.delete(skill)
+        db.session.commit()
+    return redirect(url_for("dashboard"))
+
+@app.route("/post_job", methods=["GET", "POST"])
+@login_required
+def post_job():
+    if current_user.role != "employer":
+        flash("Only employers can post jobs.")
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        job = Job(
+            poster_id=current_user.id,
+            title=request.form.get("title"),
+            company_name=request.form.get("company_name"),
+            location=request.form.get("location"),
+            experience_level=request.form.get("experience_level"),
+            job_type=request.form.get("job_type"),
+            salary_min=int(request.form.get("salary_min", 0)),
+            salary_max=int(request.form.get("salary_max", 0)),
+            is_remote='is_remote' in request.form,
+            description=request.form.get("description")
+        )
+        db.session.add(job)
+        db.session.flush() # Get job.id
+        
+        # Add responsibilities
+        for res in request.form.get("responsibilities", "").split("\n"):
+            if res.strip():
+                db.session.add(Responsibility(job_id=job.id, text=res.strip()))
+        
+        # Add requirements
+        for req in request.form.get("requirements", "").split("\n"):
+            if req.strip():
+                db.session.add(Requirement(job_id=job.id, text=req.strip()))
+                
+        # Add tags
+        for tag in request.form.get("tags", "").split(","):
+            if tag.strip():
+                db.session.add(Tag(job_id=job.id, name=tag.strip()))
+                
+        db.session.commit()
+        flash("Job posted successfully!")
+        return redirect(url_for("dashboard"))
+    return render_template("post_job.html")
+
+@app.route("/apply/<int:job_id>", methods=["GET", "POST"])
+@login_required
+def apply(job_id):
+    job = Job.query.get_or_404(job_id)
+    if request.method == "POST":
+        if 'resume' in request.files:
+            file = request.files['resume']
+            if file.filename != '':
+                filename = secure_filename(f"{current_user.username}_{job.id}_{file.filename}")
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+                app_entry = Application(user_id=current_user.id, job_id=job.id, resume=filename)
+                db.session.add(app_entry)
+                job.applicant_count += 1
+                db.session.commit()
+                flash("Application submitted successfully!")
+                return redirect(url_for("dashboard"))
+    return render_template("apply.html", job=job)
 
 @app.route("/job/<int:job_id>")
 def job_detail(job_id):
